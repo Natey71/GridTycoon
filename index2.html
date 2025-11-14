@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Grid Tycoon — Mini Power Manager</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121932; --panel-2:#0f1530; --text:#e6ecff; --muted:#9fb0ff;
+    --accent:#6ee7ff; --good:#2bdc65; --warn:#ffd166; --bad:#ff5e78;
+    --card:#0f1733; --chip:#1a2346; --border:rgba(255,255,255,0.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    background:radial-gradient(1000px 600px at 80% -10%, #1b2754 0%, transparent 60%) ,
+               radial-gradient(900px 500px at -10% 120%, #1a335c 0%, transparent 60%), var(--bg);
+    color:var(--text);
+  }
+  .container{width:90%; max-width:1800px;margin:0 auto;padding:20px 20px 120px}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+  h1{font-size:22px;margin:0;letter-spacing:0.3px}
+  .subtitle{font-size:13px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--border);padding:14px;border-radius:12px;min-width:0;min-height:96px}
+  .kpi h3{font-size:12px;margin:0 0 6px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi .val{font-size:26px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bars{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+  .bar{background:var(--chip);border:1px solid var(--border);border-radius:12px;padding:10px}
+  .bar label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:var(--muted)}
+  .bar-outer{height:16px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+  .bar-inner{height:100%;width:0;transition:width .25s linear;background:linear-gradient(90deg,var(--accent),#7afabf)}
+  .balance{display:flex;align-items:center;gap:16px;margin-top:8px;flex-wrap:wrap}
+  .dial{width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--good) 0deg,var(--good) 60deg,var(--warn) 120deg,var(--bad) 180deg,var(--bad) 360deg);display:grid;place-items:center;border:1px solid var(--border)}
+  .dial-inner{width:90px;height:90px;border-radius:50%;background:#0d1531;display:grid;place-items:center;border:1px solid var(--border)}
+  .needle{width:2px;height:46px;background:#fff;transform-origin:bottom center;transform:rotate(0deg);border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.5)}
+  .dial-caption{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .btn{background:linear-gradient(180deg,#1a2852,#0f1a3d);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700;letter-spacing:0.3px}
+  .btn:hover{filter:brightness(1.05)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  select{background:#0e1733;color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:10px}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;gap:10px}
+  .pill{font-size:11px;color:#cde3ff;background:#0e1d3f;border:1px solid var(--border);padding:4px 8px;border-radius:999px;white-space:nowrap}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .list{display:grid;gap:10px}
+  .row{display:grid;grid-template-columns:1.25fr .9fr .9fr auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);padding:10px;border-radius:12px}
+  .name{font-weight:700}
+  .muted{color:var(--muted);font-size:12px}
+  .tag{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--border);background:#0d1a3a;color:#cfe1ff;display:inline-block;margin-left:6px}
+  .switch{--c:#3ddc97;display:inline-grid;place-content:center;width:56px;height:32px;border-radius:999px;border:1px solid var(--border);background:#0d1731;cursor:pointer;position:relative}
+  .switch input{display:none}
+  .knob{width:26px;height:26px;border-radius:50%;background:#dbe9ff;position:absolute;left:3px;top:3px;transition:transform .18s ease}
+  .switch.on{background:linear-gradient(90deg,#204b85,#18678f,#0f8aa1)}
+  .switch.on .knob{transform:translateX(24px)}
+  .status{font-size:12px;color:var(--muted)}
+  .tight{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .small{font-size:12px}
+  canvas{display:block;width:100%;height:120px;border-radius:12px;background:#0b1330;border:1px solid var(--border)}
+  .help{margin-top:14px;font-size:12px;color:var(--muted)}
+  .toast{position:fixed;right:16px;bottom:16px;background:#0c1736;border:1px solid var(--border);padding:12px 14px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.35);display:none;max-width:380px}
+  .modal{position:fixed;inset:0;background:rgba(3,8,20,.6);display:none;align-items:center;justify-content:center}
+  .modal .panel{width:min(900px,92vw);background:#0d1430;border:1px solid var(--border);border-radius:16px;padding:18px}
+  .modal h2{margin:6px 0 8px}
+  .modal p{color:#cfe1ff;font-size:14px;line-height:1.45}
+  .modal ul{margin:8px 0 0 18px;color:#cfe1ff}
+  .modal .close{margin-top:12px}
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:13px}
+  .right{justify-self:end;text-align:right}
+  .progress{height:10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--border);overflow:hidden}
+  .progress>div{height:100%;background:linear-gradient(90deg,var(--accent),#7afabf);width:0}
+  .warn{color:var(--warn)}
+  .bad{color:var(--bad)}
+  .good{color:var(--good)}
+  .ghost{opacity:.6}
+  .hr{border-top:1px solid var(--border);margin:12px 0}
+  @media (max-width:1080px){ .kpis{grid-template-columns:repeat(4,1fr)} .grid{grid-template-columns:1fr} }
+
+  /* Overload banner */
+  .overload-banner{
+    display:block;width:100%;background:#d83441;color:#fff;font-weight:800;text-align:center;
+    padding:10px 12px;border:1px solid var(--border);border-radius:12px;margin-bottom:12px;position:relative;
+  }
+  .overload-banner strong{color:#fff;font-weight:900}
+
+  .chart-legend{
+    display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:8px 0 2px 0;font-size:12px;color:var(--muted);
+  }
+  .chart-legend .legend-item{display:inline-flex;align-items:center;gap:8px}
+  .chart-legend .legend-swatch{width:18px;height:6px;border-radius:999px;display:inline-block}
+  .chart-legend .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  #overloadPill{ display:none !important; }
+
+  /* ————— City Infographic ————— */
+  .city-wrap{
+    margin-top:10px;background:#0a1230;border:1px solid var(--border);border-radius:12px;padding:10px;
+  }
+  .city-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .city-title .muted{font-size:11px}
+  svg#city{width:100%;height:240px;display:block}
+  .plant .body{fill:#13214a;stroke:var(--border);stroke-width:1}
+  .plant text{font-size:10px;fill:#cfe1ff}
+  .plant.off{opacity:.5}
+  .plant .barbg{fill:#0b1538}
+  .plant .bar{fill:url(#gradPlant)}
+  .sub{fill:#0e1d3f;stroke:var(--border);stroke-width:1}
+  .line{stroke:#405079;stroke-width:3;fill:none;opacity:.6}
+  .line.energized{stroke:var(--good);opacity:1;stroke-dasharray:6 6;animation:flow 1.4s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-60}}
+  .load .shell{fill:#0f1d3d;stroke:var(--border);stroke-width:1}
+  .light{fill:#2b3968;transition:fill .2s, filter .2s}
+  .lit .light{fill:#ffd166;filter:drop-shadow(0 0 4px rgba(255,209,102,.6))}
+  .city-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:#9fb0ff}
+  .city-legend .chip{background:#0e1d3f;border:1px solid var(--border);border-radius:999px;padding:3px 8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>Grid Tycoon — Mini Power Manager</h1>
+      <div class="subtitle">Balance supply and demand to hold frequency near 60 Hz while growing your grid. Up to <strong>+18% reserve</strong> supply is allowed.</div>
+    </div>
+    <div class="controls">
+      <button id="startBtn" class="btn">Start</button>
+      <button id="pauseBtn" class="btn" disabled>Pause</button>
+      <button id="resetBtn" class="btn" disabled>Reset</button>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+      <select id="speed">
+        <option value="1">1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+      <button id="howto" class="btn">How to Play</button>
+    </div>
+  </header>
+
+  <div id="overloadBanner" class="overload-banner" style="display:none">
+    <strong>OVERLOAD</strong> — fix in <span id="overloadRemain">45</span>s
+    <span id="overloadReasonWrap"> — <span id="overloadReason"></span></span>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="kpis">
+        <div class="kpi"><h3>Demand</h3><div class="val"><span id="demand">0</span> MW</div></div>
+        <div class="kpi"><h3>Supply</h3><div class="val"><span id="supply">0</span> MW</div></div>
+        <div class="kpi"><h3>Balance</h3><div class="val"><span id="balance">0</span> MW</div></div>
+        <div class="kpi"><h3>Frequency</h3><div class="val"><span id="freq">60.00</span> Hz</div></div>
+        <div class="kpi"><h3>Spot Price</h3><div class="val">$<span id="price">0</span>/MWh</div></div>
+        <div class="kpi"><h3>Cash</h3><div class="val">$<span id="cash">0</span></div></div>
+        <div class="kpi"><h3>Reputation</h3><div class="val"><span id="rep">0</span></div></div>
+        <div class="kpi"><h3>Uptime</h3><div class="val"><span id="uptime">0</span>%</div></div>
+      </div>
+
+      <div class="bars">
+        <div class="bar">
+          <label><span>Demand</span><span id="demandLbl">0 MW</span></label>
+          <div class="bar-outer"><div id="dBar" class="bar-inner"></div></div>
+        </div>
+        <div class="bar">
+          <label><span>Supply</span><span id="supplyLbl">0 MW</span></label>
+          <div class="bar-outer"><div id="sBar" class="bar-inner"></div></div>
+        </div>
+      </div>
+
+      <div class="balance">
+        <div>
+          <div class="dial"><div class="dial-inner"><div id="needle" class="needle"></div></div></div>
+          <div class="dial-caption">Grid Frequency
+            <div style="font-size:11px;color:#9fb0ff">58.5–61.5 Hz safe • Oversupply ≤ <strong>18%</strong> counts as reserve</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:320px">
+          <canvas id="history" width="1000" height="120" aria-label="History chart"></canvas>
+          <div id="chartLegend" class="chart-legend"></div>
+
+          <!-- Mock City Infographic -->
+          <div class="city-wrap">
+            <div class="city-title">
+              <strong>City Power Flow</strong>
+              <span class="muted">Plants → Substation → Loads</span>
+            </div>
+            <svg id="city" viewBox="0 0 980 240" preserveAspectRatio="xMidYMid meet" aria-label="Grid infographic">
+              <defs>
+                <linearGradient id="gradPlant" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#6ee7ff"/>
+                  <stop offset="1" stop-color="#7afabf"/>
+                </linearGradient>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+
+              <!-- Plants -->
+              <g id="plants">
+                <!-- Coal -->
+                <g id="plant-coal" class="plant" transform="translate(30,30)">
+                  <rect class="body" x="0" y="0" width="120" height="70" rx="6"/>
+                  <rect x="10" y="-20" width="16" height="20" fill="#27345e"/>
+                  <rect x="34" y="-30" width="16" height="30" fill="#27345e"/>
+                  <text x="60" y="88" text-anchor="middle">Coal</text>
+                  <rect class="barbg" x="8" y="96" width="104" height="10" rx="5"/>
+                  <rect id="bar-coal" class="bar" x="8" y="96" width="0" height="10" rx="5"/>
+                </g>
+                <!-- Gas -->
+                <g id="plant-gas" class="plant" transform="translate(30,140)">
+                  <rect class="body" x="0" y="0" width="120" height="70" rx="6"/>
+                  <circle cx="20" cy="20" r="14" fill="#27345e"/>
+                  <circle cx="50" cy="20" r="14" fill="#27345e"/>
+                  <text x="60" y="88" text-anchor="middle">Gas</text>
+                  <rect class="barbg" x="8" y="96" width="104" height="10" rx="5"/>
+                  <rect id="bar-gas" class="bar" x="8" y="96" width="0" height="10" rx="5"/>
+                </g>
+                <!-- Wind -->
+                <g id="plant-wind" class="plant" transform="translate(190,30)">
+                  <rect class="body" x="0" y="0" width="120" height="70" rx="6"/>
+                  <g transform="translate(24,18)" fill="#27345e">
+                    <rect x="12" y="4" width="3" height="28"/>
+                    <polygon points="13.5,0 27,10 0,10"/>
+                    <polygon points="13.5,12 27,22 0,22"/>
+                  </g>
+                  <text x="60" y="88" text-anchor="middle">Wind</text>
+                  <rect class="barbg" x="8" y="96" width="104" height="10" rx="5"/>
+                  <rect id="bar-wind" class="bar" x="8" y="96" width="0" height="10" rx="5"/>
+                </g>
+                <!-- Solar -->
+                <g id="plant-solar" class="plant" transform="translate(190,140)">
+                  <rect class="body" x="0" y="0" width="120" height="70" rx="6"/>
+                  <rect x="10" y="10" width="36" height="22" fill="#1c2c5b"/><rect x="52" y="10" width="36" height="22" fill="#1c2c5b"/>
+                  <rect x="10" y="38" width="36" height="22" fill="#1c2c5b"/><rect x="52" y="38" width="36" height="22" fill="#1c2c5b"/>
+                  <text x="60" y="88" text-anchor="middle">Solar</text>
+                  <rect class="barbg" x="8" y="96" width="104" height="10" rx="5"/>
+                  <rect id="bar-solar" class="bar" x="8" y="96" width="0" height="10" rx="5"/>
+                </g>
+                <!-- Nuclear (may be 0 until unlocked) -->
+                <g id="plant-nuclear" class="plant off" transform="translate(350,86)">
+                  <rect class="body" x="0" y="0" width="120" height="70" rx="6"/>
+                  <circle cx="28" cy="36" r="18" fill="#27345e"/><rect x="52" y="18" width="40" height="36" fill="#27345e" rx="4"/>
+                  <text x="60" y="88" text-anchor="middle">Nuclear</text>
+                  <rect class="barbg" x="8" y="96" width="104" height="10" rx="5"/>
+                  <rect id="bar-nuclear" class="bar" x="8" y="96" width="0" height="10" rx="5"/>
+                </g>
+              </g>
+
+              <!-- Substation -->
+              <g id="substation" transform="translate(540,92)">
+                <rect class="sub" x="0" y="0" width="90" height="56" rx="6"/>
+                <rect x="14" y="-14" width="6" height="14" fill="#223463"/>
+                <rect x="36" y="-18" width="6" height="18" fill="#223463"/>
+                <rect x="58" y="-10" width="6" height="10" fill="#223463"/>
+                <text x="45" y="74" text-anchor="middle" class="muted" style="font-size:10px;fill:#9fb0ff">Substation</text>
+              </g>
+
+              <!-- Lines from plants to sub -->
+              <g id="lines-plants">
+                <path id="line-coal" class="line" d="M150,65 C200,65 480,110 540,110"/>
+                <path id="line-gas" class="line" d="M150,175 C210,175 480,120 540,120"/>
+                <path id="line-wind" class="line" d="M310,65 C380,65 490,115 540,115"/>
+                <path id="line-solar" class="line" d="M310,175 C380,175 490,125 540,125"/>
+                <path id="line-nuclear" class="line" d="M470,121 C500,121 520,121 540,121"/>
+              </g>
+
+              <!-- Lines from sub to loads -->
+              <g id="lines-loads">
+                <path id="line-homes" class="line" d="M630,110 C700,100 830,70 900,70"/>
+                <path id="line-dc" class="line" d="M630,120 C700,130 830,150 900,150"/>
+                <path id="line-store" class="line" d="M630,118 C700,118 830,110 900,110"/>
+              </g>
+
+              <!-- Loads -->
+              <g id="loads">
+                <!-- Homes -->
+                <g id="load-homes" class="load" transform="translate(900,54)">
+                  <g transform="translate(-80,0)">
+                    <rect class="shell" x="0" y="0" width="60" height="40" rx="4"/>
+                    <rect class="light" x="6" y="8" width="16" height="12" rx="2"/>
+                    <rect class="light" x="28" y="8" width="26" height="12" rx="2"/>
+                    <rect class="light" x="6" y="24" width="12" height="10" rx="2"/>
+                    <rect class="light" x="22" y="24" width="12" height="10" rx="2"/>
+                    <rect class="light" x="38" y="24" width="16" height="10" rx="2"/>
+                    <text x="30" y="54" text-anchor="middle" style="fill:#9fb0ff;font-size:10px">Homes</text>
+                  </g>
+                </g>
+                <!-- Store -->
+                <g id="load-store" class="load" transform="translate(900,94)">
+                  <g transform="translate(-80,0)">
+                    <rect class="shell" x="0" y="0" width="60" height="36" rx="4"/>
+                    <rect class="light" x="6" y="8" width="48" height="10" rx="2"/>
+                    <rect class="light" x="6" y="22" width="18" height="8" rx="2"/>
+                    <rect class="light" x="28" y="22" width="26" height="8" rx="2"/>
+                    <text x="30" y="50" text-anchor="middle" style="fill:#9fb0ff;font-size:10px">Store</text>
+                  </g>
+                </g>
+                <!-- Datacenter -->
+                <g id="load-dc" class="load" transform="translate(900,134)">
+                  <g transform="translate(-80,0)">
+                    <rect class="shell" x="0" y="0" width="60" height="44" rx="4"/>
+                    <rect class="light" x="6" y="8" width="48" height="8" rx="2"/>
+                    <rect class="light" x="6" y="20" width="12" height="8" rx="2"/>
+                    <rect class="light" x="20" y="20" width="12" height="8" rx="2"/>
+                    <rect class="light" x="34" y="20" width="20" height="8" rx="2"/>
+                    <rect class="light" x="6" y="32" width="48" height="6" rx="2"/>
+                    <text x="30" y="56" text-anchor="middle" style="fill:#9fb0ff;font-size:10px">Datacenter</text>
+                  </g>
+                </g>
+              </g>
+            </svg>
+
+            <div class="city-legend" id="cityLegend">
+              <span class="chip">Coal <span id="cityCoal">0</span> MW</span>
+              <span class="chip">Gas <span id="cityGas">0</span> MW</span>
+              <span class="chip">Wind <span id="cityWind">0</span> MW</span>
+              <span class="chip">Solar <span id="citySolar">0</span> MW</span>
+              <span class="chip">Nuclear <span id="cityNuc">0</span> MW</span>
+            </div>
+          </div>
+
+          <div class="tight small" style="justify-content:space-between;margin-top:4px">
+            <span class="muted">Stability (60s)</span>
+            <span class="muted">Supply/Demand, Balance, Frequency</span>
+          </div>
+        </div>
+      </div>
+      <div class="help">
+        Keep balance within ±5 MW for best revenue and reputation. Frequency is forgiving; the real risk is sustained <strong>under‑supply</strong> or <strong>over‑supply beyond reserve</strong>. Build new generation, accept contracts, and toggle individual businesses in the Customers panel.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div class="tight">
+          <strong>Operations</strong>
+          <span class="pill" id="clock">Day 1 — 06:00</span>
+          <span class="pill" id="timer">Sandbox</span>
+          <span class="pill bad" id="overloadPill" style="display:none">OVERLOAD — fix in <span id="overloadRemain">45</span>s</span>
+        </div>
+        <div class="tight">
+          <button id="openBuild" class="btn">Build</button>
+          <button id="openOffers" class="btn">Contracts</button>
+          <button id="openUpgrades" class="btn">Upgrades</button>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <div class="section-title"><div><strong>Generators</strong><span class="pill">Toggle units</span></div><span class="pill small">OPEX $/tick</span></div>
+          <div class="list" id="genList"></div>
+          <div class="help">Coal runs steady; gas balances; wind/solar ride the peaks; batteries (if built) auto charge/discharge.</div>
+        </div>
+        <div>
+          <div class="section-title"><div><strong>Customers</strong><span class="pill">Connect / disconnect</span></div><span class="pill small">Contracted MW</span></div>
+          <div class="list" id="custList"></div>
+          <div class="help">Businesses (retail, office, factory, datacenter) can be turned off individually via their switches.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- How To -->
+<div id="modalHowto" class="modal" aria-hidden="true">
+  <div class="panel">
+    <h2>How to Play</h2>
+    <p>Run a tiny power grid. Each second, demand changes by time‑of‑day and customer type. Toggle generators, build new ones, and decide which customer contracts to accept.</p>
+    <ul>
+      <li><strong>Reserve:</strong> Oversupply up to 18% of demand counts as spinning reserve and does not harm stability.</li>
+      <li><strong>Warning window:</strong> Overload or unsafe frequency starts a 45s countdown instead of instant failure.</li>
+      <li><strong>Starting fleet:</strong> Coal 60 MW (on), <strong>One gas turbine</strong> 10 MW (on), three gas standby; Wind 0–30 MW (on); Solar 0–25 MW (on).</li>
+      <li><strong>Roles:</strong> Coal = base; Gas = balancing; Wind/Solar = peaks. Nuclear unlocks later.</li>
+    </ul>
+    <div class="hr"></div>
+    <div class="small muted">Tip: Keep a slight positive balance (< ~10 MW) to avoid under‑supply. Cut gas when reserve climbs past the +18% band.</div>
+    <button class="btn close" data-close="#modalHowto">Got it</button>
+  </div>
+</div>
+
+<!-- Build Modal -->
+<div id="modalBuild" class="modal" aria-hidden="true">
+  <div class="panel">
+    <h2>Build New Generation</h2>
+    <table class="table" id="buildTable">
+      <thead><tr><th>Type</th><th>Cap</th><th>Startup</th><th>OPEX</th><th>Emissions</th><th>Build Time</th><th>CAPEX</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="hr"></div>
+    <h3>In Construction</h3>
+    <div id="buildQueue"></div>
+    <button class="btn close" data-close="#modalBuild" style="margin-top:10px">Close</button>
+  </div>
+</div>
+
+<!-- Offers Modal -->
+<div id="modalOffers" class="modal" aria-hidden="true">
+  <div class="panel">
+    <h2>Customer Contract Offers</h2>
+    <div id="offersArea"></div>
+    <button class="btn close" data-close="#modalOffers" style="margin-top:10px">Close</button>
+  </div>
+</div>
+
+<!-- Upgrades Modal -->
+<div id="modalUpgrades" class="modal" aria-hidden="true">
+  <div class="panel">
+    <h2>Upgrades</h2>
+    <div id="upgradesArea"></div>
+    <button class="btn close" data-close="#modalUpgrades" style="margin-top:10px">Close</button>
+  </div>
+</div>
+
+<!-- Game Over Modal -->
+<div id="modalGameOver" class="modal" aria-hidden="true">
+  <div class="panel">
+    <h2 id="goTitle">Game Over</h2>
+    <p id="goMsg" class="muted"></p>
+    <div class="hr"></div>
+    <h3>Scorecard</h3>
+    <table class="table" id="scoreTable"></table>
+    <div class="hr"></div>
+    <h3>Local Leaderboard</h3>
+    <table class="table" id="leaderTable"></table>
+    <button class="btn close" data-close="#modalGameOver" style="margin-top:10px">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- Utilities ----------
+  const el = q => document.querySelector(q);
+  const els = q => Array.from(document.querySelectorAll(q));
+  const fmt = n => Math.round(n).toLocaleString();
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const rand = (a, b) => a + Math.random()*(b-a);
+  const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  // ---------- Elements ----------
+  const demandEl = el('#demand'), supplyEl = el('#supply'), balanceEl = el('#balance');
+  const freqEl = el('#freq'), priceEl = el('#price'), cashEl = el('#cash');
+  const repEl = el('#rep'), uptimeEl = el('#uptime');
+  const dLbl = el('#demandLbl'), sLbl = el('#supplyLbl'), dBar = el('#dBar'), sBar = el('#sBar');
+  const needle = el('#needle'), toast = el('#toast');
+  const historyCanvas = el('#history'), ctx = historyCanvas.getContext('2d');
+  const timerEl = el('#timer'), clockEl = el('#clock'), overloadBanner = el('#overloadBanner'), overloadPill = el('#overloadPill'), overloadRemainEl = el('#overloadRemain'), overloadReasonEl = el('#overloadReason');
+  const genList = el('#genList'), custList = el('#custList');
+  const buildTbody = el('#buildTable tbody'), buildQueueEl = el('#buildQueue');
+  const offersArea = el('#offersArea'), upgradesArea = el('#upgradesArea');
+
+  // City elements
+  const city = {
+    coalBar: el('#bar-coal'), gasBar: el('#bar-gas'), windBar: el('#bar-wind'), solarBar: el('#bar-solar'), nucBar: el('#bar-nuclear'),
+    plantCoal: el('#plant-coal'), plantGas: el('#plant-gas'), plantWind: el('#plant-wind'), plantSolar: el('#plant-solar'), plantNuc: el('#plant-nuclear'),
+    lineCoal: el('#line-coal'), lineGas: el('#line-gas'), lineWind: el('#line-wind'), lineSolar: el('#line-solar'), lineNuc: el('#line-nuclear'),
+    lineHomes: el('#line-homes'), lineStore: el('#line-store'), lineDc: el('#line-dc'),
+    loadHomes: el('#load-homes'), loadStore: el('#load-store'), loadDc: el('#load-dc'),
+    legend: {
+      coal: el('#cityCoal'), gas: el('#cityGas'), wind: el('#cityWind'), solar: el('#citySolar'), nuc: el('#cityNuc')
+    }
+  };
+
+  // ---------- Config ----------
+  const TICK_MS_BASE = 1000;
+  const SAFE_HZ_MIN = 58.5, SAFE_HZ_MAX = 61.5, TARGET_HZ = 60.0;
+  const DAY_SECONDS = 300;          // 5 real minutes = 24h in-game
+  const HISTORY_LEN = 60;           // seconds for chart
+
+  // Arcade tweaks
+  const RESERVE_PCT = 0.18;         // keep your reserve spec
+  const OVERLOAD_GRACE = 45;        // 45s grace
+
+  // Frequency buff (less twitchy, self-centers faster)
+  const DIFFICULTY = {
+    easy:   { noise: 3, mismatchHzFactor: 0.004, payoutMul: 1.0 },
+    normal: { noise: 6, mismatchHzFactor: 0.006, payoutMul: 1.0 },
+    hard:   { noise: 9, mismatchHzFactor: 0.009, payoutMul: 0.9 }
+  };
+  const FREQ_RELAX_COEFF = 0.12; // stronger pull back to 60 Hz (was 0.06)
+
+  // Buildable definitions
+  const BLUEPRINTS = [
+    { key:'coal',  name:'Coal Unit',  fuel:'coal',  cap:60,  startup:3,  opex:55,  co2:900, buildTime:16, capex:35000 },
+    { key:'gas',   name:'Gas Turbine',fuel:'gas',   cap:20,  startup:2,  opex:70,  co2:450, buildTime:14, capex:18000 },
+    { key:'wind',  name:'Wind Farm',  fuel:'wind',  cap:30,  startup:0,  opex:5,   co2:0,   buildTime:12, capex:18000, variable:true },
+    { key:'solar', name:'Solar PV',   fuel:'solar', cap:25,  startup:0,  opex:4,   co2:0,   buildTime:10, capex:15000, variable:true },
+    { key:'nuclear', name:'Nuclear',  fuel:'nuclear', cap:120,startup:12,opex:25,  co2:0,   buildTime:30, capex:120000, locked:true, unlockNote:'Profits ≥ $150k' },
+    { key:'battery', name:'Battery',  fuel:'battery', cap:25, startup:0,  opex:6,  co2:0,   buildTime:12, capex:32000, isBattery:true, energyMax:1600, roundTrip:0.9 }
+  ];
+
+  const UPGRADES = [
+    { id:'agc', name:'Auto-Dispatch (AGC)', desc:'Automatically toggles a gas unit to hold ±5 MW balance.', cost:20000, owned:false },
+    { id:'fore', name:'Forecast HUD', desc:'Shows next-hour demand and solar/wind forecast bands.', cost:8000, owned:false },
+    { id:'marketing', name:'Marketing', desc:'+10 Reputation cap and +15% offer rate.', cost:12000, owned:false }
+  ];
+
+  // ---------- Game State ----------
+  let running=false, timer=null, difficulty='normal', speed=1;
+  let t=0, day=0, secondsInDay=0;
+  let freq=TARGET_HZ, price=80, cash=50000, rep=50;
+  let totalDeliveredMWh=0, totalEmissionsT=0, totalOpex=0, totalRevenue=0, profit=0;
+  let uptimeTicks=0, ticks=0;
+  let history = [];
+
+  // overload grace state
+  let overloadActive=false, overloadRemain=0, overloadReason='';
+
+  // Entities
+  let generators = [];
+  let customers  = [];
+  let buildQueue = [];
+  let offers     = [];
+  let events     = []; // active timed events
+  let fuelMultipliers = { coal:1, gas:1 };
+
+  // ---------- Initialization ----------
+  function initGame(){
+    // Start assets — excess generation by default
+    generators = [
+      makeGen('coal-1','Coal Unit','coal',60,3,55,900,false,true),           // coal ON
+      makeGen('gas-1','Gas Turbine GT-1','gas',10,2,70,450,false,true),      // one gas ON
+      makeGen('gas-2','Gas Turbine GT-2','gas',10,2,70,450,false,false),
+      makeGen('gas-3','Gas Turbine GT-3','gas',10,2,70,450,false,false),
+      makeGen('gas-4','Gas Turbine GT-4','gas',10,2,70,450,false,false),
+      makeGen('wind-1','Wind Farm','wind',30,0,5,0,true,true),               // renewables ON
+      makeGen('solar-1','Solar PV','solar',25,0,4,0,true,true),
+    ];
+
+    // Customers
+    customers = [
+      makeCustomer('Homes — Oakview', 'residential-block', 35, 'evening-peaker', 1.2, true),
+      makeCustomer('Market Street Store', 'retail', 12, 'business-hours', 1.0, true),
+      makeCustomer('Tiny Datacenter', 'datacenter', 18, 'flat', 1.0, true),
+    ];
+
+    buildQueue = [];
+    offers = [];
+    events = [];
+    fuelMultipliers = { coal:1, gas:1 };
+
+    running=false; clearInterval(timer); timer=null;
+    t=0; day=1; secondsInDay=6*60; // start at 06:00
+    freq=TARGET_HZ; price=80; cash=50000; rep=50;
+    totalDeliveredMWh=0; totalEmissionsT=0; totalOpex=0; totalRevenue=0; profit=0;
+    uptimeTicks=0; ticks=0; history=[];
+    overloadActive=false; overloadRemain=0; overloadReason='';
+    els('.modal').forEach(m=>m.style.display='none');
+
+    renderGenList(); renderCustList(); renderBuildables(); renderUpgrades();
+    updateUI(0,0,0); drawHistory(); renderLegend();
+    setButtons();
+    toastMsg('Ready. Coal base online. Keep reserve under +18%.');
+  }
+
+  function setButtons(){
+    el('#startBtn').disabled = running;
+    el('#pauseBtn').disabled = !running;
+    el('#resetBtn').disabled = running && ticks<2 ? true : false;
+  }
+
+  // ---------- Entity Factories ----------
+  function makeGen(id,name,fuel,cap,startup,opex,co2,variable=false,on=false){
+    return {
+      id, name, fuel, cap, startup, opex, co2, variable, on, enabled:true, actual:0,
+      isBattery: fuel==='battery',
+      energy:0, energyMax:0, roundTrip:1,
+      age:0, fault:false, maint:1.0, building:false
+    };
+  }
+  function makeBattery(id,name,power,energyMax,roundTrip){
+    const g = makeGen(id,name,'battery',power,0,6,0,false,true);
+    g.isBattery = true; g.energy = Math.round(energyMax*0.5); g.energyMax = energyMax; g.roundTrip = roundTrip||0.9;
+    return g;
+  }
+  function makeCustomer(name, klass, baseMW, profile, volatility=1.0, connected=true){
+    return { id: 'c-'+Math.random().toString(36).slice(2,8), name, klass, baseMW, profile, volatility, connected, priceAdj:1.0 };
+  }
+
+  // ---------- Rendering: Generators ----------
+  function renderGenList(){
+    genList.innerHTML='';
+    for(const g of generators){
+      const row = document.createElement('div');
+      row.className='row';
+      const tags = `<span class="tag">${g.fuel}</span>` + (g.variable?`<span class="tag">variable</span>`:'') + (g.isBattery?`<span class="tag">battery</span>`:'');
+      row.innerHTML = `
+        <div class="name">${g.name} ${tags} <div class="muted small">${g.isBattery?`Power ${g.cap} MW • Energy ${fmt(g.energy)}/${fmt(g.energyMax)}`:`Capacity ${g.cap} MW`}</div></div>
+        <div class="status">${g.fault?'<span class="bad">FAULT</span>':(g.enabled? (g.on?'Online':'OFF') : `Starting (${g._startRemain||g.startup}s)`)}</div>
+        <div class="status">Out: <strong id="${g.id}-out">0</strong> MW <span class="muted">| OPEX $${g.opex}</span></div>
+        <div class="right">
+          <label class="switch ${g.on?'on':''}" id="${g.id}-switch" aria-label="Toggle ${g.name}"><input type="checkbox" ${g.on?'checked':''}/><div class="knob"></div></label>
+        </div>`;
+      genList.appendChild(row);
+      el(`#${g.id}-switch`).addEventListener('click', (e)=>{ e.preventDefault(); toggleGen(g.id); });
+    }
+  }
+  function toggleGen(id){
+    const g = generators.find(x=>x.id===id); if(!g) return;
+    if(g.isBattery){ g.on = !g.on; updateSwitchUI(g); return; }
+    g.on = !g.on; updateSwitchUI(g);
+    if(g.on && g.startup>0){
+      g.enabled=false; g._startRemain = g.startup; updateStatus(g,`Starting (${g._startRemain}s)`);
+      const iv = setInterval(()=>{
+        g._startRemain--; updateStatus(g,g._startRemain>0?`Starting (${g._startRemain}s)`:'Online');
+        if(g._startRemain<=0){ clearInterval(iv); g.enabled=true; g._startRemain=0; }
+      }, 1000/Math.max(1,speed));
+    }else{
+      updateStatus(g,g.on?'Online':'OFF');
+    }
+  }
+  function updateSwitchUI(g){
+    const sw = el(`#${g.id}-switch`); if(!sw) return;
+    sw.classList.toggle('on', !!g.on);
+    const input = sw.querySelector('input'); if(input) input.checked = !!g.on;
+  }
+  function updateStatus(g, text){ const s = el(`#${g.id}-out`)?.parentElement?.previousElementSibling; if(s) s.innerHTML = text; }
+
+  // ---------- Rendering: Customers ----------
+  function renderCustList(){
+    custList.innerHTML='';
+    for(const c of customers){
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `
+        <div class="name">${c.name} <span class="tag">${c.klass.replace('-',' ')}</span><div class="muted small">Contract ${fmt(c.baseMW)} MW • Profile ${c.profile}</div></div>
+        <div class="status">Status: ${c.connected?'<span class="good">Connected</span>':'<span class="warn">Disconnected</span>'}</div>
+        <div class="status">Load: <strong id="${c.id}-d">0</strong> MW</div>
+        <div class="right">
+          <label class="switch ${c.connected?'on':''}" id="${c.id}-switch" aria-label="Connect ${c.name}"><input type="checkbox" ${c.connected?'checked':''}/><div class="knob"></div></label>
+        </div>`;
+      custList.appendChild(row);
+      el(`#${c.id}-switch`).addEventListener('click', (e)=>{ e.preventDefault(); c.connected=!c.connected; updateCustSwitch(c); });
+    }
+  }
+  function updateCustSwitch(c){
+    const sw = el(`#${c.id}-switch`); if(!sw) return;
+    sw.classList.toggle('on', !!c.connected);
+    const input=sw.querySelector('input'); if(input) input.checked = !!c.connected;
+    rep = clamp(rep + (c.connected? +1 : -2), 0, 110);
+  }
+
+  // ---------- Buildables / Upgrades ----------
+  function renderBuildables(){
+    buildTbody.innerHTML='';
+    for(const bp of BLUEPRINTS){
+      const locked = bp.locked && !(profit>=150000);
+      const tr = document.createElement('tr');
+      tr.className = locked?'ghost':'';
+      tr.innerHTML = `
+        <td>${bp.name} ${bp.variable?'<span class="tag">variable</span>':''}${bp.isBattery?'<span class="tag">battery</span>':''}</td>
+        <td>${bp.cap} MW</td>
+        <td>${bp.startup}s</td>
+        <td>$${bp.opex}</td>
+        <td>${bp.co2} t/GWh</td>
+        <td>${bp.buildTime}s</td>
+        <td>$${fmt(bp.capex)}</td>
+        <td class="right">${locked?`<span class="muted small">${bp.unlockNote}</span>`:`<button class="btn small" data-build="${bp.key}">Build</button>`}</td>`;
+      buildTbody.appendChild(tr);
+    }
+    buildTbody.querySelectorAll('[data-build]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const key = btn.getAttribute('data-build');
+        const bp = BLUEPRINTS.find(b=>b.key===key); if(!bp) return;
+        if(cash < bp.capex){ toastMsg('Not enough cash.'); return; }
+        cash -= bp.capex;
+        const task = { id:'b-'+Math.random().toString(36).slice(2,8), bpKey:key, name:bp.name, remain:bp.buildTime, total:bp.buildTime };
+        buildQueue.push(task); renderQueue();
+        toastMsg(`Construction started: ${bp.name}.`);
+      });
+    });
+    renderQueue();
+  }
+  function renderQueue(){
+    buildQueueEl.innerHTML='';
+    if(buildQueue.length===0){ buildQueueEl.innerHTML = '<div class="muted small">Nothing under construction.</div>'; return; }
+    for(const q of buildQueue){
+      const wrap = document.createElement('div');
+      wrap.style.marginBottom='8px';
+      wrap.innerHTML = `<div class="tight small"><strong>${q.name}</strong><span class="muted"> ${q.remain}s left</span></div>
+                        <div class="progress"><div style="width:${(100*(q.total-q.remain)/q.total).toFixed(1)}%"></div></div>`;
+      buildQueueEl.appendChild(wrap);
+    }
+  }
+  function renderUpgrades(){
+    upgradesArea.innerHTML='';
+    for(const up of UPGRADES){
+      const owned = !!up.owned;
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `
+        <div class="name">${up.name}<div class="muted small">${up.desc}</div></div>
+        <div class="status">${owned?'<span class="good">Owned</span>':`$${fmt(up.cost)}`}</div>
+        <div></div>
+        <div class="right">${owned?'<span class="pill">✔</span>':`<button class="btn small" data-up="${up.id}">Buy</button>`}</div>`;
+      upgradesArea.appendChild(row);
+    }
+    upgradesArea.querySelectorAll('[data-up]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-up');
+        const up = UPGRADES.find(u=>u.id===id); if(!up || up.owned) return;
+        if(cash<up.cost){ toastMsg('Not enough cash.'); return; }
+        cash -= up.cost; up.owned=true; renderUpgrades();
+        toastMsg(`${up.name} purchased.`);
+      });
+    });
+  }
+
+  // ---------- Demand Model ----------
+  function demandOfCustomer(c, sec){
+    const h = (sec % DAY_SECONDS) / DAY_SECONDS * 24; // hour 0..24
+    let shape=1;
+    switch(c.profile){
+      case 'evening-peaker': shape = 0.65 + 0.55*peak(h, 18, 22) + 0.25*peak(h,6,8); break;
+      case 'business-hours': shape = 0.3 + 0.9*peak(h,9,18); break;
+      case 'flat':           shape = 1.0; break;
+      case 'factory':        shape = 0.6 + 0.5*peak(h,7,19); break;
+      case 'town':           shape = 0.55 + 0.65*peak(h,18,23) + 0.15*peak(h,6,8); break;
+      default: shape=1.0;
+    }
+    const noise = rand(-0.06,0.06) * DIFFICULTY[difficulty].noise/6;
+    let mw = c.baseMW * shape * c.volatility * (1+noise) * (c.connected?1:0);
+    mw = clamp(mw, 0, c.baseMW*1.8);
+    return mw;
+  }
+  function peak(hour, start, end){
+    if(end<start) end+=24;
+    const inWindow = (hour>=start && hour<=end) || (hour+24>=start && hour+24<=end);
+    if(!inWindow) return 0;
+    const mid = (start+end)/2;
+    const width = (end-start)/2;
+    const x = Math.abs((hour-mid));
+    return clamp(1 - x/width, 0, 1);
+  }
+
+  // ---------- Renewable Output ----------
+  function updateRenewables(sec){
+    for(const g of generators){
+      if(g.variable){
+        if(g.fuel==='wind'){
+          if(g.on){
+            const drift = rand(-5,5);
+            g.actual = clamp((g.actual||rand(8,18))+drift, 5, g.cap);
+          }else g.actual=0;
+        }
+        if(g.fuel==='solar'){
+          if(g.on){
+            const cyc = Math.sin((sec/DAY_SECONDS)*Math.PI*2 - Math.PI/2);
+            const day = Math.max(0, cyc);
+            const cloud = 0.85 + (Math.random()*0.3 - 0.15); // 0.7—1.0
+            g.actual = Math.round(g.cap * day * cloud);
+          }else g.actual=0;
+        }
+      }
+    }
+  }
+
+  // ---------- Thermal / Battery Output ----------
+  function updateThermalAndBattery(){
+    for(const g of generators){
+      if(g.isBattery) continue;
+      if(g.fuel!=='wind' && g.fuel!=='solar'){
+        if(g.on && g.enabled && !g.fault) g.actual = g.cap; else g.actual = 0;
+      }
+    }
+  }
+
+  function batteryDispatch(balance){
+    // positive balance means surplus supply; negative means deficit
+    const batts = generators.filter(g=>g.isBattery && g.on);
+    let adjust = 0;
+    for(const b of batts){
+      const canDis = Math.min(b.cap, b.energy);
+      const canChg = Math.min(b.cap, b.energyMax - b.energy);
+      if(balance< -1){ // deficit -> discharge
+        const need = Math.min(-balance, canDis);
+        b.actual = need; b.energy -= need; adjust += need;
+      } else if(balance> 1){ // surplus -> charge
+        const room = Math.min(balance, canChg);
+        const take = room * b.roundTrip;
+        b.actual = -room; b.energy += take; adjust -= room;
+      } else { b.actual = 0; }
+    }
+    return adjust; // MW added to supply (negative means charging)
+  }
+
+  // ---------- Market Price ----------
+  function computePrice(demand, supply){
+    const scarcity = clamp((demand - supply)/Math.max(1,demand), -0.6, 1.2);
+    const base = 70;
+    const fuel = 8*(fuelMultipliers.coal-1) + 12*(fuelMultipliers.gas-1);
+    const noise = rand(-4,4); // smaller noise for readability
+    let p = base + 90*scarcity + noise + fuel;
+    p = clamp(p, 25, 380);
+    return Math.round(p);
+  }
+
+  // ---------- Offers / Names ----------
+  function maybeOffer(){
+    const rate = 0.05 * (UPGRADES.find(u=>u.id==='marketing')?.owned?1.15:1);
+    if(t%5!==0) return;
+    const chance = rate * (0.5 + rep/120);
+    if(Math.random() < chance){
+      const o = makeOffer();
+      offers.push(o);
+      toastMsg(`New contract offer: ${o.name} (${o.baseMW} MW)`);
+    }
+  }
+  function makeOffer(){
+    const types = [
+      { klass:'office', base:[8,20], profile:'business-hours' },
+      { klass:'factory', base:[15,35], profile:'factory' },
+      { klass:'datacenter', base:[12,30], profile:'flat' },
+      { klass:'town', base:[25,60], profile:'town' },
+      { klass:'retail', base:[6,16], profile:'business-hours' },
+      { klass:'residential-block', base:[12,28], profile:'evening-peaker' }
+    ];
+    const t = choice(types);
+    const mw = Math.round(rand(t.base[0], t.base[1]));
+    const name = genName(t.klass);
+    return { id:'o-'+Math.random().toString(36).slice(2,8), name, klass:t.klass, baseMW:mw, profile:t.profile, volatility:1.0, bonus: Math.round(rand(0,10)) };
+  }
+  function genName(klass){
+    const cities = ['Riverton','Northfield','Pinecrest','Silver Run','Clearwater','Stonehaven','Lakeside','Maple Heights','Brookvale','Westford'];
+    const inds   = ['Alpha','Nova','Apex','Zenith','Atlas','Nimbus','Vertex','Quantum','Cobalt','Orchid'];
+    switch(klass){
+      case 'datacenter': return `${inds[Math.floor(Math.random()*inds.length)]} Cloud Node`;
+      case 'factory': return `${inds[Math.floor(Math.random()*inds.length)]} Components Plant`;
+      case 'office': return `${inds[Math.floor(Math.random()*inds.length)]} Offices`;
+      case 'town': return `${cities[Math.floor(Math.random()*cities.length)]} Township`;
+      case 'retail': return `${cities[Math.floor(Math.random()*cities.length)]} Plaza`;
+      default: return `${cities[Math.floor(Math.random()*cities.length)]} Homes`;
+    }
+  }
+  function renderOffers(){
+    offersArea.innerHTML='';
+    if(offers.length===0){ offersArea.innerHTML='<div class="muted small">No pending offers.</div>'; return; }
+    for(const o of offers){
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `
+        <div class="name">${o.name} <span class="tag">${o.klass}</span><div class="muted small">Contract ${o.baseMW} MW • Profile ${o.profile}</div></div>
+        <div class="status">Reputation bonus: +${o.bonus}</div>
+        <div></div>
+        <div class="right">
+          <button class="btn small" data-accept="${o.id}">Accept</button>
+          <button class="btn small" data-reject="${o.id}">Reject</button>
+        </div>`;
+      offersArea.appendChild(row);
+    }
+    offersArea.querySelectorAll('[data-accept]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-accept');
+        const o = offers.find(x=>x.id===id); if(!o) return;
+        customers.push(makeCustomer(o.name,o.klass,o.baseMW,o.profile,1.0,true));
+        rep = clamp(rep + o.bonus, 0, 110);
+        offers = offers.filter(x=>x.id!==id);
+        renderCustList(); renderOffers();
+        toastMsg(`Contract accepted: ${o.name} (+${o.baseMW} MW)`);
+      });
+    });
+    offersArea.querySelectorAll('[data-reject]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-reject');
+        const o = offers.find(x=>x.id===id); if(!o) return;
+        rep = clamp(rep - 2, 0, 110);
+        offers = offers.filter(x=>x.id!==id);
+        renderOffers(); toastMsg(`Offer rejected: ${o.name}`);
+      });
+    });
+  }
+
+  // ---------- Random Events ----------
+  function maybeEvent(){
+    if(t%30!==0) return;
+    if(Math.random()<0.35){
+      const ev = choice(['storm','trip','fuel-spike','heatwave']);
+      switch(ev){
+        case 'storm': startEvent({type:'storm', secs:rand(10,20)|0}); break;
+        case 'trip':  startEvent({type:'trip', secs:rand(6,12)|0}); break;
+        case 'fuel-spike': startEvent({type:'fuel', secs:rand(15,25)|0, fuel: choice(['gas','coal'])}); break;
+        case 'heatwave': startEvent({type:'heat', secs:rand(10,18)|0}); break;
+      }
+    }
+  }
+  function startEvent(e){
+    e.endAt = t + e.secs; events.push(e);
+    if(e.type==='storm'){ toastMsg('Storm front: wind & solar output reduced.'); }
+    if(e.type==='trip'){
+      // Coal cannot trip (base indefinite); exclude battery/variable too
+      const cand = generators.filter(g=>!g.variable && !g.isBattery && g.on && !g.fault && g.fuel!=='coal');
+      if(cand.length){
+        const g = choice(cand); g.fault=true; updateSwitchUI(g);
+        e.genId = g.id; toastMsg(`Unit trip: ${g.name} offline.`);
+      }
+    }
+    if(e.type==='fuel'){ fuelMultipliers[e.fuel] = 1.35; toastMsg(`${e.fuel.toUpperCase()} fuel spike: OPEX up.`); }
+    if(e.type==='heat'){ toastMsg('Heat wave: residential & commercial demand up.'); }
+  }
+  function applyEventEffects(demand){
+    let d = demand;
+    for(const ev of events){
+      if(ev.type==='storm'){
+        for(const g of generators){
+          if(g.fuel==='wind') g.actual = Math.round(g.actual*0.55);
+          if(g.fuel==='solar') g.actual = Math.round(g.actual*0.7);
+        }
+      }
+      if(ev.type==='heat'){ d *= 1.08; }
+    }
+    return d;
+  }
+  function cleanupEvents(){
+    events = events.filter(e=>{
+      if(t>=e.endAt){
+        if(e.type==='trip'){
+          const g = generators.find(x=>x.id===e.genId);
+          if(g){ g.fault=false; updateSwitchUI(g); toastMsg(`Unit restored: ${g.name}.`); }
+        }
+        if(e.type==='fuel'){ fuelMultipliers[e.fuel]=1; toastMsg('Fuel markets normalized.'); }
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // ---------- Overload / Warning ----------
+  function setOverload(active, reason){
+    overloadActive = active;
+    overloadReason = reason||overloadReason;
+    if(active && overloadRemain<=0){ overloadRemain = OVERLOAD_GRACE; }
+    if(overloadBanner) overloadBanner.style.display = active ? 'block' : 'none';
+    if(overloadPill) overloadPill.style.display = 'none';
+    if(active){
+      if(overloadRemainEl) overloadRemainEl.textContent = overloadRemain;
+      if(typeof overloadReasonEl !== 'undefined' && overloadReasonEl) overloadReasonEl.textContent = overloadReason;
+    }
+  }
+  function tickOverloadCountdown(unsafe){
+    if(unsafe){
+      if(!overloadActive) setOverload(true, 'Unsafe operation');
+      else {
+        overloadRemain = Math.max(0, overloadRemain-1);
+        overloadRemainEl.textContent = overloadRemain;
+        if(overloadRemain<=0){
+          endGame(false, `Blackout — ${overloadReason}`);
+        }
+      }
+    }else if(overloadActive){
+      setOverload(false,'');
+    }
+  }
+
+  // ---------- City Viz ----------
+  function fuelStats(){
+    const s = { coal:{cap:0,out:0}, gas:{cap:0,out:0}, wind:{cap:0,out:0}, solar:{cap:0,out:0}, nuclear:{cap:0,out:0} };
+    generators.forEach(g=>{
+      if(s[g.fuel]){ s[g.fuel].cap += g.cap; s[g.fuel].out += Math.max(0,g.actual||0); }
+    });
+    return s;
+  }
+  function setBar(rect, out, cap){
+    if(!rect) return;
+    const w = 104 * (cap>0 ? clamp(out/cap,0,1) : 0);
+    rect.setAttribute('width', w);
+  }
+  function setEnergized(elm, on){ if(!elm) return; elm.classList.toggle('energized', !!on); }
+  function setPlantState(group, on){ if(!group) return; group.classList.toggle('off', !on); }
+  function setLit(group, on){ if(!group) return; group.classList.toggle('lit', !!on); }
+
+  function updateCity(demand, supply, byClass, connectedMap){
+    const fs = fuelStats();
+    // Bars
+    setBar(city.coalBar, fs.coal.out, Math.max(1,fs.coal.cap));
+    setBar(city.gasBar, fs.gas.out, Math.max(1,fs.gas.cap));
+    setBar(city.windBar, fs.wind.out, Math.max(1,fs.wind.cap));
+    setBar(city.solarBar, fs.solar.out, Math.max(1,fs.solar.cap));
+    setBar(city.nucBar, fs.nuclear.out, Math.max(1,fs.nuclear.cap));
+
+    // Plant on/off
+    setPlantState(city.plantCoal, fs.coal.out>0);
+    setPlantState(city.plantGas,  fs.gas.out>0);
+    setPlantState(city.plantWind, fs.wind.out>0);
+    setPlantState(city.plantSolar,fs.solar.out>0);
+    setPlantState(city.plantNuc,  fs.nuclear.cap>0 && fs.nuclear.out>0);
+
+    // Lines energized
+    setEnergized(city.lineCoal, fs.coal.out>0);
+    setEnergized(city.lineGas,  fs.gas.out>0);
+    setEnergized(city.lineWind, fs.wind.out>0);
+    setEnergized(city.lineSolar,fs.solar.out>0);
+    setEnergized(city.lineNuc,  fs.nuclear.out>0);
+
+    // Served ratio
+    const servedRatio = demand>0 ? Math.min(1, supply/demand) : 1;
+
+    // Loads: light if connected and mostly served
+    const homesOn = (connectedMap['residential-block']||false) && servedRatio>=0.98;
+    const storeOn = (connectedMap['retail']||false) && servedRatio>=0.98;
+    const dcOn    = (connectedMap['datacenter']||false) && servedRatio>=0.98;
+
+    setEnergized(city.lineHomes, homesOn || servedRatio>0.05);
+    setEnergized(city.lineStore, storeOn || servedRatio>0.05);
+    setEnergized(city.lineDc,    dcOn    || servedRatio>0.05);
+
+    setLit(city.loadHomes, homesOn);
+    setLit(city.loadStore, storeOn);
+    setLit(city.loadDc,    dcOn);
+
+    // Legend numbers
+    city.legend.coal.textContent = fmt(fs.coal.out);
+    city.legend.gas.textContent  = fmt(fs.gas.out);
+    city.legend.wind.textContent = fmt(fs.wind.out);
+    city.legend.solar.textContent= fmt(fs.solar.out);
+    city.legend.nuc.textContent  = fmt(fs.nuclear.out);
+  }
+
+  // ---------- Main Tick ----------
+  function tick(){
+    ticks++; secondsInDay = (secondsInDay+1) % DAY_SECONDS; if(secondsInDay===0) day++;
+    updateClock();
+
+    // 1) Demand (track by class)
+    let demand = 0;
+    const byClass = {};
+    const connectedMap = {};
+    for(const c of customers){
+      const mw = demandOfCustomer(c, secondsInDay);
+      const dEl = el(`#${c.id}-d`); if(dEl) dEl.textContent = fmt(mw);
+      demand += mw;
+      byClass[c.klass] = (byClass[c.klass]||0) + mw;
+      if(c.connected) connectedMap[c.klass] = true;
+    }
+    demand = Math.round(demand);
+
+    // 2) Generation
+    updateRenewables(secondsInDay);
+    updateThermalAndBattery();
+
+    // Supply before battery
+    let supply = generators.reduce((s,g)=> s + Math.max(0,g.actual||0), 0);
+    // Battery reacts
+    const adjusted = batteryDispatch(supply - demand);
+    supply += adjusted;
+
+    // Apply event effects
+    demand = Math.round(applyEventEffects(demand));
+
+    // 3) Frequency: reserve‑aware, more forgiving
+    const reserveMW = Math.round(demand * RESERVE_PCT);
+    const rawBalance = supply - demand;
+    const oversupply = Math.max(0, rawBalance);
+    const effectiveBalance = oversupply>0 ? Math.max(0, oversupply - reserveMW) : rawBalance;
+    const df = effectiveBalance * DIFFICULTY[difficulty].mismatchHzFactor;
+    const relax = (TARGET_HZ - freq) * FREQ_RELAX_COEFF;
+    freq = clamp(freq + df + relax, 57.0, 63.0);
+
+    // 4) Market & Economy
+    price = computePrice(demand, supply);
+    const delivered = Math.max(0, Math.min(supply, demand));
+    const tickHours = 1/3600 * speed;
+    const revenue = delivered * price * tickHours * DIFFICULTY[difficulty].payoutMul;
+
+    // OPEX and emissions
+    let opex = 0, emissions = 0;
+    for(const g of generators){
+      if(g.isBattery){
+        if(Math.abs(g.actual)>0) opex += g.opex*0.5;
+      }else if(g.on && (g.enabled||g.variable) && !g.fault){
+        const mult = fuelMultipliers[g.fuel]||1;
+        if((g.actual||0)>0 || g.variable) opex += g.opex * mult;
+        emissions += (g.co2/1000) * (Math.max(0,g.actual) * tickHours);
+      }
+    }
+    const installedCap = generators.filter(g=>!g.isBattery).reduce((s,g)=>s+g.cap,0);
+    const targetCap = Math.max(80, 1.4 * (demand||80));
+    const maint = installedCap>targetCap ? (installedCap-targetCap) * 0.6 : 0;
+    opex += maint;
+
+    totalOpex += opex;
+    totalEmissionsT += emissions;
+    totalDeliveredMWh += delivered * tickHours;
+
+    cash += (revenue - opex);
+    totalRevenue += revenue;
+    profit = totalRevenue - totalOpex;
+
+    // 5) Reputation / uptime
+    if(delivered>=demand-0.1){ uptimeTicks++; rep = clamp(rep + 0.04, 0, 110); }
+    else rep = clamp(rep - 0.15, 0, 110);
+
+    // 6) Safety / overload: emphasize under/over vs frequency
+    const deficit = demand - supply;
+    const oversupplyBeyondReserve = Math.max(0, oversupply - reserveMW);
+    const unsafe = (freq<SAFE_HZ_MIN || freq>SAFE_HZ_MAX || deficit>0 || oversupplyBeyondReserve>0);
+    if(unsafe){
+      const reason = deficit>0 ? 'prolonged deficit' :
+                     (oversupplyBeyondReserve>0 ? 'excess oversupply beyond reserve' :
+                      `frequency ${freq.toFixed(2)} Hz`);
+      setOverload(true, reason);
+    }
+    tickOverloadCountdown(unsafe);
+
+    // 7) Autopilot (AGC)
+    if(UPGRADES.find(u=>u.id==='agc')?.owned){
+      const g = generators.find(x=>x.fuel==='gas' && !x.fault);
+      if(g){
+        if((supply - demand) < -7 && !g.on) toggleGen(g.id);
+        if((supply - demand) > 6 && g.on) toggleGen(g.id);
+      }
+    }
+
+    // 8) Timers
+    updateBuildQueue();
+    maybeOffer();
+    maybeEvent();
+    cleanupEvents();
+
+    // 9) UI
+    updateUI(demand, supply, rawBalance);
+    pushHistory(demand, supply, rawBalance, freq);
+    drawHistory();
+
+    // 10) City Viz
+    updateCity(demand, supply, byClass, connectedMap);
+  }
+
+  function updateBuildQueue(){
+    for(const q of buildQueue){ q.remain = Math.max(0, q.remain-1); }
+    const done = buildQueue.filter(q=>q.remain<=0);
+    if(done.length){
+      for(const q of done){
+        const bp = BLUEPRINTS.find(b=>b.key===q.bpKey);
+        if(bp.isBattery){
+          const b = makeBattery('bat-'+Math.random().toString(36).slice(2,7), 'Battery', bp.cap, bp.energyMax, bp.roundTrip);
+          generators.push(b);
+        }else{
+          const id = bp.key+'-'+Math.random().toString(36).slice(2,7);
+          const g = makeGen(id, bp.name, bp.fuel, bp.cap, bp.startup, bp.opex, bp.co2, !!bp.variable, (bp.fuel==='wind'||bp.fuel==='solar'));
+          generators.push(g);
+        }
+        toastMsg(`${q.name} commissioned.`);
+      }
+      buildQueue = buildQueue.filter(q=>q.remain>0);
+      renderQueue(); renderGenList();
+    }else if(t%1===0){ renderQueue(); }
+  }
+
+  // ---------- UI ----------
+  function updateUI(demand, supply, balance){
+    demandEl.textContent = fmt(demand);
+    supplyEl.textContent = fmt(supply);
+    const reserveMW = Math.round(demand * RESERVE_PCT);
+    const reserveText = (balance>0 && balance<=reserveMW) ? ' (reserve)' : '';
+    balanceEl.textContent = (balance>0?'+':'') + fmt(balance) + reserveText;
+    freqEl.textContent = freq.toFixed(2);
+    priceEl.textContent = fmt(price);
+    cashEl.textContent = fmt(cash);
+    repEl.textContent = Math.round(rep);
+    uptimeEl.textContent = ticks? Math.round(100*uptimeTicks/ticks):0;
+
+    dLbl.textContent = fmt(demand)+' MW';
+    sLbl.textContent = fmt(supply)+' MW';
+    dBar.style.width = Math.min(100, demand/1.6) + '%';
+    sBar.style.width = Math.min(100, supply/1.6) + '%';
+
+    for(const g of generators){
+      const out = el(`#${g.id}-out`);
+      if(out){
+        if(g.isBattery){
+          out.textContent = (g.actual>0? '+' : (g.actual<0? '' : '')) + fmt(g.actual);
+        }else{
+          out.textContent = fmt(Math.max(0,g.actual||0));
+        }
+      }
+    }
+
+    const ang = clamp((balance/50)*70, -80, 80);
+    needle.style.transform = `rotate(${ang}deg)`;
+
+    setButtons();
+  }
+
+  function updateClock(){
+    const hourFloat = secondsInDay / DAY_SECONDS * 24;
+    const hh = Math.floor(hourFloat);
+    const mm = Math.floor((hourFloat - hh)*60);
+    const pad = n => n.toString().padStart(2,'0');
+    clockEl.textContent = `Day ${day} — ${pad(hh)}:${pad(mm)}`;
+    timerEl.textContent = 'Sandbox';
+  }
+
+  function pushHistory(demand, supply, balance, freq){
+    history.push({demand,supply,balance,freq});
+    while(history.length>HISTORY_LEN) history.shift();
+  }
+  function drawHistory(){
+    const W = historyCanvas.width, H = historyCanvas.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha = 0.15; ctx.strokeStyle = '#7aa1ff'; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let i=0;i<=6;i++){ const y=i*H/6; ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+
+    const maxDemand = Math.max(100, ...history.map(h=>h.demand));
+    const maxSupply = Math.max(100, ...history.map(h=>h.supply));
+    const maxVal = Math.max(maxDemand, maxSupply, 150);
+
+    function pathFor(key){
+      ctx.beginPath();
+      history.forEach((h,i)=>{
+        const x = i/(HISTORY_LEN-1)*W;
+        const y = H - (h[key]/maxVal)*H;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+    }
+    ctx.strokeStyle = '#6ee7ff'; pathFor('demand'); ctx.stroke();
+    ctx.strokeStyle = '#7afabf'; pathFor('supply'); ctx.stroke();
+
+    ctx.fillStyle='#ffd166';
+    history.forEach((h,i)=>{
+      const x = i/(HISTORY_LEN-1)*W;
+      const y = H - ((h.freq-57)/(63-57))*H;
+      ctx.fillRect(x-1, y-1, 2, 2);
+    });
+    ctx.restore();
+  }
+
+  // ---------- Game Over / Leaderboard ----------
+  function endGame(victory, reason){
+    running=false; clearInterval(timer); timer=null; setButtons();
+    const score = Math.round( profit + (uptimeTicks/ticks)*25000 - totalEmissionsT*500 );
+    const rows = [
+      ['Result', victory?'Stable run':'Blackout'],
+      ['Reason', reason],
+      ['Profit', '$'+fmt(profit)],
+      ['Uptime', (ticks?Math.round(100*uptimeTicks/ticks):0)+'%'],
+      ['Energy Delivered', fmt(Number(totalDeliveredMWh.toFixed?totalDeliveredMWh.toFixed(0):totalDeliveredMWh))+' MWh'],
+      ['Emissions', fmt(Number(totalEmissionsT.toFixed?totalEmissionsT.toFixed(0):totalEmissionsT))+' t'],
+      ['Final Cash', '$'+fmt(cash)],
+      ['Reputation', Math.round(rep)],
+      ['Score', fmt(score)]
+    ];
+    const st = el('#scoreTable'); st.innerHTML='';
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<th>${r[0]}</th><td>${r[1]}</td>`;
+      st.appendChild(tr);
+    });
+    const key='grid-tycoon-leaderboard';
+    const lb = JSON.parse(localStorage.getItem(key)||'[]');
+    lb.push({ when:Date.now(), score, profit, uptime: ticks?Math.round(100*uptimeTicks/ticks):0, emissions: totalEmissionsT });
+    lb.sort((a,b)=>b.score-a.score); while(lb.length>8) lb.pop();
+    localStorage.setItem(key, JSON.stringify(lb));
+    renderLeaderboard(lb);
+    el('#goTitle').textContent = victory?'You made it!':'Game Over';
+    el('#goMsg').textContent = reason;
+    openModal('#modalGameOver');
+  }
+  function renderLeaderboard(lb){
+    const lt = el('#leaderTable'); lt.innerHTML='';
+    const head = document.createElement('tr');
+    head.innerHTML='<th>Rank</th><th>Score</th><th>Profit</th><th>Uptime</th><th>Emissions</th>';
+    lt.appendChild(head);
+    lb.forEach((r,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${fmt(r.score)}</td><td>$${fmt(r.profit)}</td><td>${r.uptime}%</td><td>${fmt(Math.round(r.emissions))} t</td>`;
+      lt.appendChild(tr);
+    });
+  }
+
+  // ---------- Loop Controls ----------
+  function start(){
+    if(running) return;
+    difficulty = el('#difficulty').value;
+    speed = Number(el('#speed').value);
+    running=true;
+    timer = setInterval(()=>{ for(let i=0;i<speed;i++) tick(); }, TICK_MS_BASE);
+    el('#startBtn').disabled=true; el('#pauseBtn').disabled=false; el('#resetBtn').disabled=false;
+    toastMsg('Simulation started.');
+  }
+  function pause(){
+    if(!running) return;
+    running=false; clearInterval(timer); timer=null; setButtons(); toastMsg('Paused.');
+  }
+  function reset(){ initGame(); }
+
+  // ---------- Build & Offers UI ----------
+  function openModal(sel){ const m = el(sel); if(m){ m.style.display='flex'; } }
+  function closeModal(sel){ const m = el(sel); if(m){ m.style.display='none'; } }
+
+  // ---------- Events ----------
+  function toastMsg(text){
+    toast.textContent = text; toast.style.display='block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=> toast.style.display='none', 2400);
+  }
+
+  function renderLegend(){
+    const lg = el('#chartLegend'); if(!lg) return;
+    lg.innerHTML = '<div class="legend-item"><span class="legend-swatch" style="background:#6ee7ff"></span> Demand</div>' +
+                   '<div class="legend-item"><span class="legend-swatch" style="background:#7afabf"></span> Supply</div>' +
+                   '<div class="legend-item"><span class="legend-dot" style="background:#ffd166"></span> Frequency</div>';
+  }
+
+  // ---------- Bootstrap ----------
+  initGame();
+  // Draw loop (history) — keep smooth even when paused
+  function rafLoop(){ drawHistory(); requestAnimationFrame(rafLoop); }
+  rafLoop();
+
+  // Wire UI
+  el('#startBtn').addEventListener('click', start);
+  el('#pauseBtn').addEventListener('click', pause);
+  el('#resetBtn').addEventListener('click', reset);
+  el('#speed').addEventListener('change', ()=>{ speed=Number(el('#speed').value); if(running){ pause(); start(); }});
+  el('#openBuild').addEventListener('click', ()=>{ renderBuildables(); openModal('#modalBuild'); });
+  el('#openOffers').addEventListener('click', ()=>{ renderOffers(); openModal('#modalOffers'); });
+  el('#openUpgrades').addEventListener('click', ()=>{ renderUpgrades(); openModal('#modalUpgrades'); });
+  el('#howto').addEventListener('click', ()=> openModal('#modalHowto'));
+  els('.close').forEach(btn=> btn.addEventListener('click', ()=> closeModal(btn.getAttribute('data-close'))));
+  els('.modal').forEach(m=> m.addEventListener('click', (e)=>{ if(e.target===m) m.style.display='none'; }));
+})();
+</script>
+</body>
+</html>
